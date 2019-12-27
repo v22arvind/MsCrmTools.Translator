@@ -142,8 +142,9 @@ namespace MsCrmTools.Translator.AppCode
             }
         }
 
-        public void Import(ExcelWorksheet sheet, List<EntityMetadata> emds, IOrganizationService service, BackgroundWorker worker)
+        public void Import(ExcelWorksheet sheet, List<EntityMetadata> emds, IOrganizationService service, BackgroundWorker worker, bool allowBlank)
         {
+            AllowBlank = allowBlank;
             var amds = new List<MasterAttribute>();
 
             var rowsCount = sheet.Dimension.Rows;
@@ -192,7 +193,8 @@ namespace MsCrmTools.Translator.AppCode
 
                 if (ZeroBasedSheet.Cell(sheet, rowI, 3).Value.ToString() == "DisplayName")
                 {
-                    amd.Amd.DisplayName = new Label();
+                    if (amd.Amd.DisplayName == null)
+                        amd.Amd.DisplayName = new Label();
 
                     while (columnIndex < cellsCount)
                     {
@@ -200,14 +202,25 @@ namespace MsCrmTools.Translator.AppCode
                         {
                             var lcid = int.Parse(ZeroBasedSheet.Cell(sheet, 0, columnIndex).Value.ToString());
                             var label = ZeroBasedSheet.Cell(sheet, rowI, columnIndex).Value.ToString();
-                            amd.Amd.DisplayName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+
+                            if (!AllowBlank && !string.IsNullOrWhiteSpace(label))
+                            {
+                                var currLbl =
+                                    amd.Amd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == lcid);
+
+                                if (currLbl == null)
+                                    amd.Amd.DisplayName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                                else
+                                    currLbl.Label = label;
+                            }
                         }
                         columnIndex++;
                     }
                 }
                 else if (ZeroBasedSheet.Cell(sheet, rowI, 3).Value.ToString() == "Description")
                 {
-                    amd.Amd.Description = new Label();
+                    if (amd.Amd.Description == null)
+                        amd.Amd.Description = new Label();
 
                     while (columnIndex < cellsCount)
                     {
@@ -215,7 +228,18 @@ namespace MsCrmTools.Translator.AppCode
                         {
                             var lcid = int.Parse(ZeroBasedSheet.Cell(sheet, 0, columnIndex).Value.ToString());
                             var label = ZeroBasedSheet.Cell(sheet, rowI, columnIndex).Value.ToString();
-                            amd.Amd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+
+                            //amd.Amd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            if (!AllowBlank && !string.IsNullOrWhiteSpace(label))
+                            {
+                                var currLbl =
+                                    amd.Amd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == lcid);
+
+                                if (currLbl == null)
+                                    amd.Amd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                                else
+                                    currLbl.Label = label;
+                            }
                         }
 
                         columnIndex++;
@@ -223,50 +247,54 @@ namespace MsCrmTools.Translator.AppCode
                 }
             }
 
-            int i = 0;
+            //int i = 0;
+            var requestList = new List<UpdateAttributeRequest>();
+
             foreach (var amd in amds)
             {
                 if (amd.Amd.DisplayName.LocalizedLabels.All(l => string.IsNullOrEmpty(l.Label))
                     || amd.Amd.IsRenameable.Value == false)
                 {
-                    i++;
-                    worker.ReportProgressIfPossible(0, new ProgressInfo
-                    {
-                        Item = i * 100 / amds.Count
-                    });
+                    //i++;
+                    //worker.ReportProgressIfPossible(0, new ProgressInfo
+                    //{
+                    //    Item = i * 100 / amds.Count
+                    //});
                     continue;
                 }
-                try
+                //try
+                //{
+                requestList.Add(new UpdateAttributeRequest
                 {
-                    var request = new UpdateAttributeRequest
-                    {
-                        Attribute = amd.Amd,
-                        EntityName = amd.Amd.EntityLogicalName
-                    };
-                    service.Execute(request);
-
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = true,
-                        SheetName = sheet.Name
-                    });
-                }
-                catch (Exception error)
-                {
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = false,
-                        SheetName = sheet.Name,
-                        Message = $"{amd.Amd.SchemaName}: {error.Message}"
-                    });
-                }
-
-                i++;
-                worker.ReportProgressIfPossible(0, new ProgressInfo
-                {
-                    Item = i * 100 / amds.Count
+                    Attribute = amd.Amd,
+                    EntityName = amd.Amd.EntityLogicalName
                 });
+                //service.Execute(request);
+
+                //OnResult(new TranslationResultEventArgs
+                //{
+                //    Success = true,
+                //    SheetName = sheet.Name
+                //});
+                //}
+                //catch (Exception error)
+                //{
+                //    OnResult(new TranslationResultEventArgs
+                //    {
+                //        Success = false,
+                //        SheetName = sheet.Name,
+                //        Message = $"{amd.Amd.SchemaName}: {error.Message}"
+                //    });
+                //}
+
+                //i++;
+                //worker.ReportProgressIfPossible(0, new ProgressInfo
+                //{
+                //    Item = i * 100 / amds.Count
+                //});
             }
+
+            ProcessMultiple<UpdateAttributeRequest>(service, requestList, sheet.Name);
         }
 
         private void AddHeader(ExcelWorksheet sheet, IEnumerable<int> languages)

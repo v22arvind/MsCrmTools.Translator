@@ -206,35 +206,37 @@ namespace MsCrmTools.Translator.AppCode
                 requests.Add(request);
             }
 
-            int i = 0;
-            foreach (var request in requests)
-            {
-                try
-                {
-                    service.Execute(request);
+            ProcessMultiple<SetLocLabelsRequest>(service, requests, sheet.Name);
 
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = true,
-                        SheetName = sheet.Name
-                    });
-                }
-                catch (Exception error)
-                {
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = false,
-                        SheetName = sheet.Name,
-                        Message = $"{request.EntityMoniker.Id}/{request.AttributeName}: {error.Message}"
-                    });
-                }
+            //int i = 0;
+            //foreach (var request in requests)
+            //{
+            //    try
+            //    {
+            //        service.Execute(request);
 
-                i++;
-                worker.ReportProgressIfPossible(0, new ProgressInfo
-                {
-                    Item = i * 100 / requests.Count
-                });
-            }
+            //        OnResult(new TranslationResultEventArgs
+            //        {
+            //            Success = true,
+            //            SheetName = sheet.Name
+            //        });
+            //    }
+            //    catch (Exception error)
+            //    {
+            //        OnResult(new TranslationResultEventArgs
+            //        {
+            //            Success = false,
+            //            SheetName = sheet.Name,
+            //            Message = $"{request.EntityMoniker.Id}/{request.AttributeName}: {error.Message}"
+            //        });
+            //    }
+
+            //    i++;
+            //    worker.ReportProgressIfPossible(0, new ProgressInfo
+            //    {
+            //        Item = i * 100 / requests.Count
+            //    });
+            //}
         }
 
         private void AddHeader(ExcelWorksheet sheet, IEnumerable<int> languages)

@@ -8,7 +8,7 @@ namespace MsCrmTools.Translator
 
         public bool ExportAttributes { get; set; }
         public bool ExportBooleans { get; set; }
-        public bool ExportCharts { get; internal set; }
+        public bool ExportCharts { get; set; }
         public bool ExportCustomizedRelationships { get; set; }
         public bool ExportDashboards { get; set; }
         public bool ExportEntities { get; set; }
@@ -21,7 +21,7 @@ namespace MsCrmTools.Translator
         public bool ExportSiteMap { get; set; }
         public bool ExportViews { get; set; }
         public string FilePath { get; set; }
-        public bool ExportNames { get; internal set; }
-        public bool ExportDescriptions { get; internal set; }
+        public bool ExportNames { get; set; }
+        public bool ExportDescriptions { get; set; }
     }
 }

@@ -219,7 +219,7 @@ namespace MsCrmTools.Translator
             }
         }
 
-        public void Import(string filePath, IOrganizationService service, BackgroundWorker worker = null, int? lcidToProcess = null)
+        public void Import(string filePath, IOrganizationService service, BackgroundWorker worker = null, int? lcidToProcess = null, bool allowBlank = false)
         {
             using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
@@ -267,6 +267,8 @@ namespace MsCrmTools.Translator
 
                     try
                     {
+                        //if (string.Equals(sheet.Name, "Entities"))
+                        //{
                         switch (sheet.Name)
                         {
                             case "Entities":
@@ -279,7 +281,7 @@ namespace MsCrmTools.Translator
 
                                 var et = new EntityTranslation();
                                 et.Result += Engine_OnResult;
-                                et.Import(sheet, emds, service, worker);
+                                et.Import(sheet, emds, service, worker, allowBlank);
 
                                 break;
 
@@ -293,7 +295,7 @@ namespace MsCrmTools.Translator
 
                                 var at = new AttributeTranslation();
                                 at.Result += Engine_OnResult;
-                                at.Import(sheet, emds, service, worker);
+                                at.Import(sheet, emds, service, worker, allowBlank);
                                 break;
 
                             case "Relationships":
@@ -310,6 +312,7 @@ namespace MsCrmTools.Translator
                                     rt.Import(sheet, emds, service, worker);
                                     break;
                                 }
+
                             case "RelationshipsNN":
                                 {
                                     worker.ReportProgressIfPossible(0, new ProgressInfo
@@ -324,6 +327,7 @@ namespace MsCrmTools.Translator
                                     rtNn.Import(sheet, emds, service, worker);
                                     break;
                                 }
+
                             case "Global OptionSets":
                                 worker.ReportProgressIfPossible(0, new ProgressInfo
                                 {
@@ -456,6 +460,7 @@ namespace MsCrmTools.Translator
                                 hasSiteMapContent = true;
                                 break;
                         }
+                        //}
 
                         if (hasFormContent)
                         {

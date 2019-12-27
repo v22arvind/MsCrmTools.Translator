@@ -24,8 +24,12 @@ namespace MsCrmTools.Translator.AppCode
 
             try
             {
-                File.AppendAllText("Logs\\ImportTranslations_progress_" + DateTime.Now.Date.ToString("MMddyyyy") + ".log",
-                      string.Format("{0}Progres - Overall:{1}, Item:{2}. Message:{3}", Environment.NewLine, pInfo.Overall, pInfo.Item, pInfo.Message));
+                if (!string.IsNullOrEmpty(pInfo.Message))
+                {
+                    File.AppendAllText("Logs\\ImportTranslations_" + DateTime.Now.Date.ToString("MMddyyyy") + ".log",
+                        string.Format("{0}Progres - Overall:{1}, Item:{2}. Message:{3}", Environment.NewLine,
+                            pInfo.Overall, pInfo.Item, pInfo.Message));
+                }
             }
             catch { }
         }

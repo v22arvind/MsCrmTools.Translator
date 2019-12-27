@@ -130,8 +130,9 @@ namespace MsCrmTools.Translator.AppCode
             }
         }
 
-        public void Import(ExcelWorksheet sheet, List<EntityMetadata> emds, IOrganizationService service, BackgroundWorker worker)
+        public void Import(ExcelWorksheet sheet, List<EntityMetadata> emds, IOrganizationService service, BackgroundWorker worker, bool allowBlank)
         {
+            AllowBlank = allowBlank;
             var rowsCount = sheet.Dimension.Rows;
             var cellsCount = sheet.Dimension.Columns;
 
@@ -161,7 +162,9 @@ namespace MsCrmTools.Translator.AppCode
 
                 if (ZeroBasedSheet.Cell(sheet, rowI, 2).Value.ToString() == "DisplayName")
                 {
-                    emd.DisplayName = new Label();
+                    if (emd.DisplayName == null)
+                        emd.DisplayName = new Label();
+
                     int columnIndex = 3;
 
                     while (columnIndex < cellsCount)
@@ -171,7 +174,19 @@ namespace MsCrmTools.Translator.AppCode
                             var lcid = int.Parse(ZeroBasedSheet.Cell(sheet, 0, columnIndex).Value.ToString());
                             var label = ZeroBasedSheet.Cell(sheet, rowI, columnIndex).Value.ToString();
 
-                            emd.DisplayName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            if (!AllowBlank && !string.IsNullOrWhiteSpace(label))
+                            {
+                                if (emd.DisplayName.LocalizedLabels != null)
+                                {
+                                    var currLbl =
+                                        emd.DisplayName.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == lcid);
+
+                                    if (currLbl == null)
+                                        emd.DisplayName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                                    else
+                                        currLbl.Label = label;
+                                }
+                            }
                         }
 
                         columnIndex++;
@@ -179,7 +194,9 @@ namespace MsCrmTools.Translator.AppCode
                 }
                 else if (ZeroBasedSheet.Cell(sheet, rowI, 2).Value.ToString() == "DisplayCollectionName")
                 {
-                    emd.DisplayCollectionName = new Label();
+                    if (emd.DisplayCollectionName == null)
+                        emd.DisplayCollectionName = new Label();
+
                     int columnIndex = 3;
 
                     while (columnIndex < cellsCount)
@@ -189,7 +206,21 @@ namespace MsCrmTools.Translator.AppCode
                             var lcid = int.Parse(ZeroBasedSheet.Cell(sheet, 0, columnIndex).Value.ToString());
                             var label = ZeroBasedSheet.Cell(sheet, rowI, columnIndex).Value.ToString();
 
-                            emd.DisplayCollectionName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            //emd.DisplayCollectionName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            if (!AllowBlank && !string.IsNullOrWhiteSpace(label))
+                            {
+                                if (emd.DisplayCollectionName.LocalizedLabels != null)
+                                {
+                                    var currLbl =
+                                        emd.DisplayCollectionName.LocalizedLabels.FirstOrDefault(l =>
+                                            l.LanguageCode == lcid);
+
+                                    if (currLbl == null)
+                                        emd.DisplayCollectionName.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                                    else
+                                        currLbl.Label = label;
+                                }
+                            }
                         }
 
                         columnIndex++;
@@ -197,7 +228,9 @@ namespace MsCrmTools.Translator.AppCode
                 }
                 else if (ZeroBasedSheet.Cell(sheet, rowI, 2).Value.ToString() == "Description")
                 {
-                    emd.Description = new Label();
+                    if (emd.Description == null)
+                        emd.Description = new Label();
+
                     int columnIndex = 3;
 
                     while (columnIndex < cellsCount)
@@ -207,7 +240,20 @@ namespace MsCrmTools.Translator.AppCode
                             var lcid = int.Parse(ZeroBasedSheet.Cell(sheet, 0, columnIndex).Value.ToString());
                             var label = ZeroBasedSheet.Cell(sheet, rowI, columnIndex).Value.ToString();
 
-                            emd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            //emd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                            if (!AllowBlank && !string.IsNullOrWhiteSpace(label))
+                            {
+                                if (emd.Description.LocalizedLabels != null)
+                                {
+                                    var currLbl =
+                                        emd.Description.LocalizedLabels.FirstOrDefault(l => l.LanguageCode == lcid);
+
+                                    if (currLbl == null)
+                                        emd.Description.LocalizedLabels.Add(new LocalizedLabel(label, lcid));
+                                    else
+                                        currLbl.Label = label;
+                                }
+                            }
                         }
 
                         columnIndex++;
@@ -216,7 +262,8 @@ namespace MsCrmTools.Translator.AppCode
             }
 
             var entities = emds.Where(e => e.IsRenameable.Value).ToList();
-            int i = 0;
+            //int i = 0;
+            var requestList = new List<UpdateEntityRequest>();
             foreach (var emd in entities)
             {
                 var entityUpdate = new EntityMetadata();
@@ -225,34 +272,37 @@ namespace MsCrmTools.Translator.AppCode
                 entityUpdate.Description = emd.Description;
                 entityUpdate.DisplayCollectionName = emd.DisplayCollectionName;
 
-                try
-                {
-                    var request = new UpdateEntityRequest { Entity = entityUpdate };
+                //try
+                //{
+                requestList.Add(new UpdateEntityRequest { Entity = entityUpdate });
 
-                    service.Execute(request);
+                //service.Execute(request);
 
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = true,
-                        SheetName = sheet.Name
-                    });
-                }
-                catch (Exception error)
-                {
-                    OnResult(new TranslationResultEventArgs
-                    {
-                        Success = false,
-                        SheetName = sheet.Name,
-                        Message = $"{emd.LogicalName}: {error.Message}"
-                    });
-                }
+                //OnResult(new TranslationResultEventArgs
+                //{
+                //    Success = true,
+                //    SheetName = sheet.Name
+                //});
+                //}
+                //catch (Exception error)
+                //{
+                //    OnResult(new TranslationResultEventArgs
+                //    {
+                //        Success = false,
+                //        SheetName = sheet.Name,
+                //        Message = $"{emd.LogicalName}: {error.Message}"
+                //    });
+                //}
 
-                i++;
-                worker.ReportProgressIfPossible(0, new ProgressInfo
-                {
-                    Item = i * 100 / entities.Count
-                });
+
+
+                //i++;
+                //worker.ReportProgressIfPossible(0, new ProgressInfo
+                //{
+                //    Item = i * 100 / entities.Count
+                //});
             }
+            ProcessMultiple<UpdateEntityRequest>(service, requestList, sheet.Name);
         }
 
         private void AddHeader(ExcelWorksheet sheet, IEnumerable<int> languages)
