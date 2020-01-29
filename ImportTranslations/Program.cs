@@ -19,6 +19,7 @@ namespace ImportTranslations
 
         static void Main(string[] args)
         {
+
             string directory = string.Empty;
             int? lcidToProcess = null;
             string connStr = null;
@@ -28,17 +29,18 @@ namespace ImportTranslations
             Log($"----------------------------------------------");
             Log($"Running the translation import in batch mode");
             Log($"----------------------------------------------");
-
-            //get arguments
-            if (args.Length < 1)
+            try
             {
-                directory = @"C:\Users\arvind-v\Documents\UNHCR\Data\Translation\XrmToolbox\toprocess";
-                lcidToProcess = 1036;
+                //get arguments
+                //if (args.Length < 1)
+                //{
+                //    directory = @"C:\Users\arvind-v\Documents\UNHCR\Data\Translation\XrmToolbox\toprocess";
+                //    lcidToProcess = 1036;
 
-                Log($"Directory not specified! - running test mode for path: {directory}");
-            }
-            else
-            {
+                //    Log($"Directory not specified! - running test mode for path: {directory}");
+                //}
+                //else
+                //{
                 directory = args[0];
 
                 if (args.Length > 1)
@@ -55,84 +57,111 @@ namespace ImportTranslations
 
                 if (args.Length > 2)
                 {
-                    if (string.Equals(args[2], "E"))
+                    if (string.Equals(args[2], "E", StringComparison.OrdinalIgnoreCase))
                     {
                         export = true;
                     }
                 }
 
-                if (args.Length > 3)
+                if (args.Length > 2)
                 {
-                    if (int.TryParse(args[2], out int parsedInt))
+                    if (string.Equals(args[2], "E", StringComparison.OrdinalIgnoreCase))
                     {
-                        lcidToProcess = parsedInt;
+                        export = true;
+                    }
+                }
+
+
+                //if (args.Length > )
+                //{
+                //    if (int.TryParse(args[2], out int parsedInt))
+                //    {
+                //        lcidToProcess = parsedInt;
+                //    }
+                //}
+                //}
+
+                Log($"Processing for directory {directory}");
+
+                if (lcidToProcess.HasValue)
+                    Log($"Processing for Language {lcidToProcess}");
+
+                if (!Directory.Exists(directory))
+                {
+                    Log($"Incorrect path! {directory}");
+                    return;
+                }
+
+                //Compose CRM Service
+                CrmServiceClient c =
+                    new CrmServiceClient(ConfigurationManager.ConnectionStrings[connStr].ConnectionString);
+
+                Log("Testing CRM service");
+                //test service
+                var resp = c.Execute(new WhoAmIRequest()) as WhoAmIResponse;
+                Log($"Service is working fine. Current user is {resp.UserId}");
+
+                var filesToImport = Directory.GetFiles(directory);
+                //move the file to processed folder
+                var destDir = Path.Combine(directory, "Processed", DateTime.Now.ToString("yyyyMMddHHmmss"));
+
+                Engine e = new Engine();
+                var settings = new ExportSettings();
+
+                foreach (var file in filesToImport)
+                {
+                    try
+                    {
+                        if (!export)
+                        {
+                            Log($"************* Importing File: {file}");
+
+                            e.Import(file, c, new BackgroundWorker(), lcidToProcess);
+                        }
+                        else
+                        {
+                            Log($"************* Exporting File: {file}");
+                            settings = GetExportSettings(file);
+                            e.Export(settings, c, new BackgroundWorker(), false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogAllError(ex);
+                        //Log($"Error processing file {file}. Error Message: {ex.Message}, More Details: {ex.StackTrace}");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(file) || !file.EndsWith(".xlsx"))
+                        continue;
+                    try
+                    {
+
+                        Directory.CreateDirectory(destDir);
+                        File.Move(file, Path.Combine(destDir, Path.GetFileName(file)));
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"Error in moving file {file}. Error Message: {ex.Message}, More Details: {ex.StackTrace}");
                     }
                 }
             }
-
-            Log($"Processing for directory {directory}");
-            Log($"Processing for Language {lcidToProcess}");
-
-            if (!Directory.Exists(directory))
+            catch (Exception ex)
             {
-                Log($"Incorrect path! {directory}");
-                return;
+                Log($"Exception occurred! - Message: {ex.Message}");
+                Log(ex.StackTrace);
             }
-
-            //Compose CRM Service
-            CrmServiceClient c = new CrmServiceClient(ConfigurationManager.ConnectionStrings[connStr].ConnectionString);
-
-            Log("Testing CRM service");
-            //test service
-            var resp = c.Execute(new WhoAmIRequest()) as WhoAmIResponse;
-            Log($"Service is working fine. Current user is {resp.UserId}");
-
-            var filesToImport = Directory.GetFiles(directory);
-            //move the file to processed folder
-            var destDir = Path.Combine(directory, "Processed", DateTime.Now.ToString("yyyyMMddHHmmss"));
-
-            Engine e = new Engine();
-            var settings = new ExportSettings();
-
-            foreach (var file in filesToImport)
-            {
-                try
-                {
-                    if (!export)
-                    {
-                        Log($"************* Importing File: {file}");
-
-                        e.Import(file, c, new BackgroundWorker(), lcidToProcess);
-                    }
-                    else
-                    {
-                        Log($"************* Exporting File: {file}");
-                        settings = GetExportSettings(file);
-                        e.Export(settings, c, new BackgroundWorker());
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error processing file {file}. Error Message: {ex.Message}, More Details: {ex.StackTrace}");
-                }
-
-                if (string.IsNullOrWhiteSpace(file) || !file.EndsWith(".xlsx"))
-                    continue;
-                try
-                {
-
-                    Directory.CreateDirectory(destDir);
-                    File.Move(file, Path.Combine(destDir, Path.GetFileName(file)));
-                }
-                catch (Exception ex)
-                {
-                    Log($"Error in moving file {file}. Error Message: {ex.Message}, More Details: {ex.StackTrace}");
-                }
-            }
-
             Log($"****************************");
             Log($"Translation Import Complete");
             Log($"****************************");
+
+        }
+
+        private static void LogAllError(Exception ex)
+        {
+            Log($"Error processing file. Error Message: {ex.Message}, Source: {ex.Source}");
+
+            if (ex.InnerException != null)
+                LogAllError(ex.InnerException);
         }
 
         private static ExportSettings GetExportSettings(string file)
@@ -148,21 +177,41 @@ namespace ImportTranslations
                 s.ExportCharts = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Charts", StringComparison.OrdinalIgnoreCase));
                 s.ExportCustomizedRelationships = doc.Workbook.Worksheets.Any(x => x.Name.StartsWith("Relationships", StringComparison.OrdinalIgnoreCase));
                 s.ExportDashboards = doc.Workbook.Worksheets.Any(x => x.Name.StartsWith("Dashboards ", StringComparison.OrdinalIgnoreCase));
-                s.ExportDescriptions = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Charts", StringComparison.OrdinalIgnoreCase));
+                s.ExportDescriptions = true;
                 s.ExportEntities = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Entities", StringComparison.OrdinalIgnoreCase));
                 s.ExportFormFields = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Forms Fields", StringComparison.OrdinalIgnoreCase));
                 s.ExportForms = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Forms", StringComparison.OrdinalIgnoreCase));
                 s.ExportFormSections = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Forms Sections", StringComparison.OrdinalIgnoreCase));
                 s.ExportFormTabs = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Forms Tabs", StringComparison.OrdinalIgnoreCase));
                 s.ExportGlobalOptionSet = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Global OptionSets", StringComparison.OrdinalIgnoreCase));
-                s.ExportNames = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Charts", StringComparison.OrdinalIgnoreCase));
+                s.ExportNames = true;
                 s.ExportOptionSet = doc.Workbook.Worksheets.Any(x => x.Name.Equals("OptionSets", StringComparison.OrdinalIgnoreCase));
-                s.ExportSiteMap = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Charts", StringComparison.OrdinalIgnoreCase));
+                s.ExportSiteMap = doc.Workbook.Worksheets.Any(x => x.Name.StartsWith("SiteMap ", StringComparison.OrdinalIgnoreCase));
                 s.ExportViews = doc.Workbook.Worksheets.Any(x => x.Name.Equals("Views", StringComparison.OrdinalIgnoreCase));
-                s.FilePath = file;
+                s.FilePath = Path.Combine(Path.GetDirectoryName(file), "MatchingExport", Path.GetFileName(file));
+                s.Entities = GetAllEntitiesInFile(doc.Workbook.Worksheets.FirstOrDefault(x =>
+                    x.Name.Equals("Entities", StringComparison.OrdinalIgnoreCase)));
             }
 
+            Log($"Exporting file {s.FilePath} for entities {string.Join(",", s.Entities)}");
+
             return s;
+        }
+
+        private static IEnumerable<string> GetAllEntitiesInFile(ExcelWorksheet excelWorksheet)
+        {
+            Log($"Processing sheet: {excelWorksheet.Name}");
+            var entities = new List<string>();
+
+            for (int i = 1; i < excelWorksheet.Dimension.Rows; i++)
+            {
+                var ent = ZeroBasedSheet.Cell(excelWorksheet, i, 1).Value.ToString();
+
+                if (!entities.Contains(ent))
+                    entities.Add(ent);
+            }
+
+            return entities;
         }
 
         private static void Log(string msg)

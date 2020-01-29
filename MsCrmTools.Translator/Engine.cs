@@ -16,7 +16,7 @@ namespace MsCrmTools.Translator
 {
     public class Engine
     {
-        public void Export(ExportSettings settings, IOrganizationService service, BackgroundWorker worker = null)
+        public void Export(ExportSettings settings, IOrganizationService service, BackgroundWorker worker = null, bool interactive = true)
         {
             // Loading available languages
             if (worker != null && worker.WorkerReportsProgress)
@@ -212,10 +212,14 @@ namespace MsCrmTools.Translator
             }
 
             file.Save();
-
-            if (DialogResult.Yes == MessageBox.Show("Do you want to open generated document?", "Question", MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+            
+            if (interactive)
             {
-                Process.Start(settings.FilePath);
+                if (DialogResult.Yes == MessageBox.Show("Do you want to open generated document?", "Question",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question))
+                {
+                    Process.Start(settings.FilePath);
+                }
             }
         }
 

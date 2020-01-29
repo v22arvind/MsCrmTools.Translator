@@ -40,7 +40,7 @@ namespace MsCrmTools.Translator.AppCode
             }
         }
 
-        public void ProcessMultiple<T>(IOrganizationService service, List<T> requests, string sheetName)
+        public void ProcessMultiple<T>(IOrganizationService service, List<T> requests, string sheetName, int batch = 5)
         {
             ExecuteMultipleRequest mr = new ExecuteMultipleRequest()
             {
@@ -55,7 +55,7 @@ namespace MsCrmTools.Translator.AppCode
                 mr.Requests.Add((object)request as OrganizationRequest);
                 counter++;
 
-                if (mr.Requests.Count > 5)
+                if (mr.Requests.Count > batch)
                 {
                     ExecuteTheRequest(service, mr, sheetName, counter);
 

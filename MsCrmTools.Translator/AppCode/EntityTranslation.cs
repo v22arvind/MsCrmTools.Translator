@@ -302,7 +302,7 @@ namespace MsCrmTools.Translator.AppCode
                 //    Item = i * 100 / entities.Count
                 //});
             }
-            ProcessMultiple<UpdateEntityRequest>(service, requestList, sheet.Name);
+            ProcessMultiple<UpdateEntityRequest>(service, requestList, sheet.Name, 1);
         }
 
         private void AddHeader(ExcelWorksheet sheet, IEnumerable<int> languages)
